@@ -1,1 +1,1 @@
-{ content = null; position = null; }
+{ content = null; isPrimop = false; position = null; }

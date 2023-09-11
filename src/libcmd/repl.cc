@@ -905,41 +905,41 @@ void NixRepl::tryPrintDoc(std::ostream &str, Pos &pos) {
 
   Comment::Doc doc = Comment::lookupDoc(pos);
 
-  if (!doc.name.empty()) {
-    str << std::endl;
-    str << std::endl
-        << "| " << ANSI_BOLD << doc.name << ANSI_NORMAL << std::endl;
-    str << "| ";
-    for (size_t i = 0; i < doc.name.length(); i++) {
-      str << '-';
-    }
-    str << std::endl;
-    str << "| " << std::endl;
-  }
+  //   if (!doc.name.empty()) {
+  //     str << std::endl;
+  //     str << std::endl
+  //         << "| " << ANSI_BOLD << doc.name << ANSI_NORMAL << std::endl;
+  //     str << "| ";
+  //     for (size_t i = 0; i < doc.name.length(); i++) {
+  //       str << '-';
+  //     }
+  //     str << std::endl;
+  //     str << "| " << std::endl;
+  //   }
 
-  // If we're showing any form of doc at all, we need to inform
-  // user about partially applied functions.
-  if (!doc.name.empty() || !doc.comment.empty()) {
+  //   // If we're showing any form of doc at all, we need to inform
+  //   // user about partially applied functions.
+  //   if (!doc.name.empty() || !doc.comment.empty()) {
 
-    if (doc.timesApplied > 0) {
-      str << "| " << ANSI_YELLOW << "NOTE: " << ANSI_BOLD
-          << "This function has already been applied!" << ANSI_NORMAL
-          << std::endl
-          << "|       You should ignore the first " << ANSI_BOLD
-          << std::to_string(doc.timesApplied) << ANSI_NORMAL
-          << " parameter(s) in this documentation," << std::endl
-          << "|       because they have already been applied." << std::endl
-          << "|" << std::endl;
-    }
-  }
+  //     if (doc.timesApplied > 0) {
+  //       str << "| " << ANSI_YELLOW << "NOTE: " << ANSI_BOLD
+  //           << "This function has already been applied!" << ANSI_NORMAL
+  //           << std::endl
+  //           << "|       You should ignore the first " << ANSI_BOLD
+  //           << std::to_string(doc.timesApplied) << ANSI_NORMAL
+  //           << " parameter(s) in this documentation," << std::endl
+  //           << "|       because they have already been applied." << std::endl
+  //           << "|" << std::endl;
+  //     }
+  //   }
 
-  if (!doc.comment.empty()) {
-    std::stringstream commentStream(doc.comment);
-    std::string line;
-    while (std::getline(commentStream, line, '\n')) {
-      str << "| " << line << std::endl;
-    }
-  }
+  //   if (!doc.comment.empty()) {
+  //     std::stringstream commentStream(doc.comment);
+  //     std::string line;
+  //     while (std::getline(commentStream, line, '\n')) {
+  //       str << "| " << line << std::endl;
+  //     }
+  //   }
 }
 
 std::ostream &NixRepl::printValue(std::ostream &str, Value &v,

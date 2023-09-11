@@ -2667,16 +2667,35 @@ static RegisterPrimOp primop_unsafeGetAttrPos(PrimOp{
 
 void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
                              Value &v) {
+  Value value = *args[0];
   state.forceFunction(
-      *args[0], pos,
+      value, pos,
       "while evaluating the first argument to builtins.unsafeGetLambdaDoc");
+  auto lambda = value.lambda;
 
-  PosIdx posIdx = args[0]->lambda.fun->pos;
-  Pos funPos = state.positions[posIdx];
+  // TODO: Rewind the position so there is no outer lambda anymore.
+  auto attrs = state.buildBindings(3);
+  Comment::Doc doc = Comment::emptyDoc;
 
-  auto attrs = state.buildBindings(2);
-  state.mkPos(attrs.alloc("position"), posIdx);
-  Comment::Doc doc = Comment::lookupDoc(funPos);
+  // TODO: print warning if used on primops
+  // e.g. "Primops dont have doc-comments. Returning empty docs"
+  if (value.isLambda()) {
+    auto posIdx = lambda.fun->getPos();
+    // TODO: place the cursor before the outermost lambda.
+    Pos funPos = state.positions[posIdx];
+    // attrs.alloc("countApplied").mkInt(0);
+    doc = Comment::lookupDoc(funPos);
+    state.mkPos(attrs.alloc("position"), posIdx);
+  }
+  // TODO: Maybe assign the .doc content of the primop?
+  if (value.isPrimOp() || value.isPrimOpApp()) {
+    attrs.alloc("position").mkNull();
+    // PrimOps and partially applied PrimOps (PrimOpApp) dont have source
+    // positions.
+    attrs.alloc("isPrimop").mkBool(true);
+  } else {
+    attrs.alloc("isPrimop").mkBool(false);
+  }
 
   if (doc.comment.empty()) {
     attrs.alloc("content").mkNull();
@@ -2690,6 +2709,37 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
 static RegisterPrimOp primop_unsafeGetLambdaDoc(PrimOp{
     .name = "__unsafeGetLambdaDoc",
     .arity = 1,
+    .doc = R"(
+        unsafeGetLambdaDoc returns an attribute set containing the `content` of a multiline doc-comment (format: `/** */`)
+        The doc-comment must be placed before the function declaration and is also present on all function aliases.
+        To get doc-comments from a partially applied function use 'builtins.usafeGetAttrDoc'
+
+        Example:
+
+        ```nix
+        builtins.unsafeGetLambdaDoc
+            {
+                /**
+                  # The id function
+
+                  * Bullet item
+                  * another item
+
+                  ## h2 markdown heading
+
+                  some more docs
+                */
+                foo = x: x;
+            }.foo
+        ```
+
+        evaluates to
+
+        ```nix
+        { content = null; isPrimop = false; position = { column = 23; file = "/home/johannes/git/nix/test.nix"; line = 14; }; }
+        ```
+
+    )",
     .fun = prim_unsafeGetLambdaDoc,
 });
 
@@ -2697,38 +2747,47 @@ void prim_unsafeGetAttrDoc(EvalState &state, const PosIdx pos, Value **args,
                            Value &v) {
   auto attr = state.forceStringNoCtx(*args[0], pos,
                                      "while evaluating the first argument "
-                                     "passed to builtins.unsafeGetAttrPos");
+                                     "passed to builtins.unsafeGetAttrDoc");
   state.forceAttrs(*args[1], pos,
                    "while evaluating the second argument passed to "
-                   "builtins.unsafeGetAttrPos");
+                   "builtins.unsafeGetAttrDoc");
+  Symbol attrName = state.symbols.create(attr);
+  auto attribute = (*args[1]).attrs->find(attrName);
 
-  Bindings::iterator i = args[1]->attrs->find(state.symbols.create(attr));
+  // Reserve space for an attribute set with 3 nameValuePairs
+  // { position :: mkPos; content :: String; isPrimop :: Bool }
+  // isPrimop type cannot be determined from lambdas in nix code but it is
+  // important for references in documentation
+  auto retAttrs = state.buildBindings(3);
 
-  auto attrs = state.buildBindings(2);
-  if (i == args[1]->attrs->end()) {
+  if (attribute == args[1]->attrs->end()) {
     // There is no position
     // Therefore there is no doc-comment that could be retrieved
-    attrs.alloc("position").mkNull();
-    attrs.alloc("content").mkNull();
-
+    retAttrs.alloc("position").mkNull();
+    retAttrs.alloc("isPrimop").mkBool(false);
+    retAttrs.alloc("content").mkNull();
   } else {
-    state.mkPos(attrs.alloc("position"), i->pos);
-    Pos position = state.positions[i->pos];
-    Comment::Doc doc = Comment::lookupDoc(position);
+    retAttrs.alloc("isPrimop")
+        .mkBool(attribute->value->isPrimOp() ||
+                attribute->value->isPrimOpApp());
+    state.mkPos(retAttrs.alloc("position"), attribute->pos);
 
-    if (doc.comment.empty()) {
-      attrs.alloc("content").mkNull();
-    } else {
-      attrs.alloc("content").mkString(doc.comment);
-    }
+    Pos position = state.positions[attribute->pos];
+    Comment::Doc doc = Comment::lookupDoc(position);
+    retAttrs.alloc("content").mkString(doc.comment);
   }
 
-  v.mkAttrs(attrs);
+  v.mkAttrs(retAttrs);
 }
 
 static RegisterPrimOp primop_unsafeGetAttrDoc(PrimOp{
     .name = "__unsafeGetAttrDoc",
     .arity = 2,
+    .doc = R"(
+        unsafeGetAttrDoc returns an attribute set containing the `content` of a multiline doc-comment (format: `/** */`)
+        The doc-comment must be placed before the attribute path or name.
+        To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
+    )",
     .fun = prim_unsafeGetAttrDoc,
 });
 

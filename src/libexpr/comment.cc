@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "comment.hh"
+#include "nixexpr.hh"
 #include "util.hh"
 
 /* This module looks for documentation comments in the source code.
@@ -37,11 +38,17 @@
 */
 namespace nix::Comment {
 
-struct Doc emptyDoc("", "", "", 0);
+struct Doc emptyDoc("", "");
 
 /* parseDoc will try to recover a Doc by looking at the text that leads up to a
    term definition.*/
 static struct Doc parseDoc(std::string sourcePrefix);
+
+/*
+ * A simple wrapper for building up regex. Declares the given string 's'
+ * optional, non matching.
+ */
+static std::string optional(std::string s);
 
 /* stripComment unpacks a comment, by unindenting and stripping " * " prefixes
    as applicable. The argument should include any preceding whitespace. */
@@ -52,10 +59,10 @@ static std::string unindent(std::string s);
 
 static std::string trimUnindent(std::string s) { return trim(unindent(s)); }
 
-static std::string stripPrefix(std::string prefix, std::string s) {
-  std::string::size_type index = s.find(prefix);
-  return (index == 0) ? s.erase(0, prefix.length()) : s;
-}
+// static std::string stripPrefix(std::string prefix, std::string s) {
+//   std::string::size_type index = s.find(prefix);
+//   return (index == 0) ? s.erase(0, prefix.length()) : s;
+// }
 
 static std::string readFileUpToPos(const Pos &pos) {
   if (auto path = std::get_if<SourcePath>(&pos.origin)) {
@@ -88,118 +95,77 @@ struct Doc lookupDoc(const Pos &pos) {
   }
 }
 
-/* See lambdas in parseDoc */
-static int countLambdas(std::string piece) {
-  return std::count(piece.begin(), piece.end(), ':');
+static std::string optional(std::string s) {
+  return std::string("(?:" + s + ")?");
 }
 
 /* Try to recover a Doc by looking at the text that leads up to a term
    definition */
-std::string optional(std::string s) { return std::string("(?:" + s + ")?"); }
-
 static struct Doc parseDoc(std::string sourcePrefix) {
   std::string spaces("[ \\t]*");
   std::string singleLineComment(spaces + "#[^\\r\\n]*(?:\\n|\\r\\n)");
-  std::string wss("([ \\t\\r\\n]|" + singleLineComment + ")*");
-  std::string docComment("\\/\\*\\*(?:[^*]|\\*+[^*/])*\\*+\\/");
-  std::string ident("(?:[a-zA-Z_][a-zA-Z0-9_'-]*)" + wss);
-  std::string identKeep("([a-zA-Z_][a-zA-Z0-9_'-]*)" + wss);
+  std::string whitespaces("([ \\t\\r\\n]|" + singleLineComment + ")*");
+
+  std::string docCommentPrefix("\\/\\*\\*");
+  std::string multilineCommentSuffix("*\\*+\\/");
+  std::string docComment(docCommentPrefix + "(?:[^*]|\\*+[^*/])" +
+                         multilineCommentSuffix);
+  std::string ident("(?:[a-zA-Z_][a-zA-Z0-9_'-]*)" + whitespaces);
+  std::string identKeep("([a-zA-Z_][a-zA-Z0-9_'-]*)" + whitespaces);
   /* lvalue for nested attrset construction, but not matching
      quoted identifiers or ${...} or comments inbetween etc */
-  std::string simplePath("(?:" + wss + ident + "\\.)*" + identKeep);
-  std::string lambda(ident + wss + ":" + wss);
+  std::string simplePath("(?:" + whitespaces + ident + "\\.)*" + identKeep);
+  std::string lambda(ident + whitespaces + ":" + whitespaces);
   /* helper to see countLambdas */
   std::string lambdas("((:?" + lambda + ")*)");
-  std::string assign("=" + wss);
+  std::string assign("=" + whitespaces);
 
   // The docComment should:
   // A: be the first item from the back of the SourceString
-  // B: be behind an attribute path assignment
+  // B: be drecitly behind an attribute path assignment
   //
   // This is solved  by allowing an optional 'path = ' at the end.
-  std::string commentUnit("(" + spaces + docComment + ")" + wss +
+  std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
                           optional(simplePath + assign));
 
   std::string re(commentUnit + "$");
   std::regex e(re);
 
 #define REGEX_GROUP_COMMENT 1
-#define REGEX_GROUP_NAME 2
-#define REGEX_GROUP_LAMBDAS 3
-#define REGEX_GROUP_MAX 4
 
   std::smatch matches;
   regex_search(sourcePrefix, matches, e);
 
   std::stringstream buffer;
-  if (matches.length() < REGEX_GROUP_MAX) {
+  if (matches.length() < REGEX_GROUP_COMMENT ||
+      matches[REGEX_GROUP_COMMENT].str().empty()) {
     return emptyDoc;
   }
 
   std::string rawComment = matches[REGEX_GROUP_COMMENT];
-  std::string name = matches[REGEX_GROUP_NAME];
-  int timesApplied = countLambdas(matches[REGEX_GROUP_LAMBDAS]);
-  return Doc(rawComment, stripComment(rawComment), name, timesApplied);
+
+  return Doc(rawComment, stripComment(rawComment));
 }
 
 static std::string stripComment(std::string rawComment) {
   rawComment.erase(rawComment.find_last_not_of("\n") + 1);
 
   std::string s(trimUnindent(rawComment));
-
-  if (s[0] == '/' && s[1] == '*') {
-    // Remove the "/*"
-    // Indentation will be removed consistently later on
-    s[0] = ' ';
-    s[1] = ' ';
-
-    // Remove the "*/"
-    if (!s.empty() && *(--s.end()) == '/')
-      s.pop_back();
-    if (!s.empty() && *(--s.end()) == '*')
-      s.pop_back();
-
-    s = trimUnindent(s);
-
-    std::istringstream inStream(s);
-    std::ostringstream stripped;
-
-    std::string line;
-
-    /* at first, we assume a comment
-     * that is formatted like this
-     * with '*' characters at the beginning
-     * of the line.
-     */
-    bool hasStars = true;
-
-    while (std::getline(inStream, line, '\n')) {
-      if (hasStars &&
-          ((!line.empty() && line[0] == '*') ||
-           (line.length() >= 2 && line[0] == ' ' && line[1] == '*'))) {
-        if (line[0] == ' ') {
-          line = stripPrefix(" *", line);
-        } else {
-          line = stripPrefix("*", line);
-        }
-      } else {
-        hasStars = false;
-      }
-
-      stripped << line << std::endl;
-    }
-    return trimUnindent(stripped.str());
-  } else {
-    std::istringstream inStream(s);
-    std::ostringstream stripped;
-
-    std::string line;
-    while (std::getline(inStream, line, '\n')) {
-      line.erase(0, line.find("#") + 1);
-      stripped << line << std::endl;
-    }
-    return trimUnindent(stripped.str());
+  auto suffixIdx = s.find("/**");
+  if (suffixIdx != std::string::npos) {
+    // Preserve indentation of content in the first line.
+    // Writing directly after /**, without a leading newline is a potential
+    // antipattern.
+    s.replace(suffixIdx, 3, "   ");
   }
+  // Remove the "*/"
+  if (!s.empty() && *(--s.end()) == '/')
+    s.pop_back();
+  if (!s.empty() && *(--s.end()) == '*')
+    s.pop_back();
+
+  s = trimUnindent(s);
+  return s;
 }
 
 static std::string unindent(std::string s) {
