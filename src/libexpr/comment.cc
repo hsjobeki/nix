@@ -109,7 +109,7 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   std::string singleLineComment(spaces + "#[^\\r\\n]*(?:\\n|\\r\\n)");
   std::string whitespaces("([ \\t\\r\\n]|" + singleLineComment + ")*");
 
-  std::string rightParen("\\(" + whitespaces);
+  std::string rightParen(whitespaces + "\\(" + whitespaces);
 
   std::string docCommentPrefix("\\/\\*\\*");
   std::string multilineCommentSuffix("*\\*+\\/");
@@ -137,7 +137,8 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   //
   // This is solved  by allowing an optional 'path = ' at the end.
   std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
-                          optional(simplePath + assign) + optional(lambdas));
+                          optional(simplePath + assign) + optional(rightParen) +
+                          optional(lambdas));
 
   std::string re(commentUnit + "$");
   std::regex e(re);

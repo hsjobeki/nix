@@ -43,7 +43,7 @@ rec {
   partial = ((x:  (  (  y  : ((z: x))))));
   partiallyApplied = partial "1" "2";
   # alias = number;
-
+  anonymous = builtins.id or /**The lib function id*/ (x: x);
   # builtins.getDoc alias -> ""
 
 }
