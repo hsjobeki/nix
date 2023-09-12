@@ -102,6 +102,10 @@ static std::string optionals(std::string s) {
   return std::string("(?:" + s + ")*");
 }
 
+static std::string mkGroup(std::string match, std::string name) {
+  return std::string("(?'" + name + "'" + match + ")");
+}
+
 /* Try to recover a Doc by looking at the text that leads up to a term
    definition */
 static struct Doc parseDoc(std::string sourcePrefix) {

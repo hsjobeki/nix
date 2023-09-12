@@ -2690,9 +2690,19 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   }
   // TODO: Maybe assign the .doc content of the primop?
   if (value.isPrimOp() || value.isPrimOpApp()) {
-    auto primDoc = value.primOp->doc;
-    std::string s(primDoc);
-    doc = Comment::Doc(s);
+    if (value.isPrimOp()) {
+      auto primDoc = value.primOp->doc;
+      std::string s(primDoc);
+      doc = Comment::Doc(s);
+    }
+    if (value.isPrimOpApp()) {
+      Value *left = value.primOpApp.left;
+      while (!left->isPrimOp()) {
+        left = value.primOpApp.left;
+      }
+      std::string s(left->primOp->doc);
+      doc = Comment::Doc(s);
+    }
 
     // PrimOps and PrimOpApps
     // dont have source position
