@@ -109,6 +109,8 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   std::string singleLineComment(spaces + "#[^\\r\\n]*(?:\\n|\\r\\n)");
   std::string whitespaces("([ \\t\\r\\n]|" + singleLineComment + ")*");
 
+  std::string rightParen("\\(" + whitespaces);
+
   std::string docCommentPrefix("\\/\\*\\*");
   std::string multilineCommentSuffix("*\\*+\\/");
   std::string docComment(docCommentPrefix + "(?:[^*]|\\*+[^*/])" +
@@ -118,12 +120,16 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   /* lvalue for nested attrset construction, but not matching
      quoted identifiers or ${...} or comments inbetween etc */
   std::string simplePath("(?:" + whitespaces + ident + "\\.)*" + identKeep);
-  std::string lambda(ident + whitespaces + ":" + whitespaces);
+
+  //    ((x:  (  (  y  : ((
+  std::string lambda(optionals(rightParen) + ident + whitespaces + ":" +
+                     whitespaces + optionals(rightParen));
   /* helper to see countLambdas */
+
   std::string lambdas("((:?" + lambda + ")*)");
   std::string assign("=" + whitespaces);
 
-  std::string rightParen("\\(" + whitespaces);
+  // optionals(whitespaces + rightParen)
 
   // The docComment should:
   // A: be the first item from the back of the SourceString
@@ -131,8 +137,7 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   //
   // This is solved  by allowing an optional 'path = ' at the end.
   std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
-                          optional(simplePath + assign) +
-                          optionals(whitespaces + rightParen));
+                          optional(simplePath + assign) + optional(lambdas));
 
   std::string re(commentUnit + "$");
   std::regex e(re);
