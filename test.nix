@@ -45,7 +45,10 @@ rec {
   # alias = number;
   anonymous = builtins.id or /**The lib function id*/ (x: x);
   # builtins.getDoc alias -> ""
-
+  /**
+  Some docs
+  */
+  paren = (x: (x));
 }
 
 

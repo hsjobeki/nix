@@ -137,8 +137,8 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   //
   // This is solved  by allowing an optional 'path = ' at the end.
   std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
-                          optional(simplePath + assign) + optional(rightParen) +
-                          optional(lambdas));
+                          optional(simplePath + assign) +
+                          optionals(rightParen) + optional(lambdas));
 
   std::string re(commentUnit + "$");
   std::regex e(re);

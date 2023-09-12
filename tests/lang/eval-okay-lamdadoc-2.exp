@@ -1,0 +1,1 @@
+{ content = "The lib function id"; isPrimop = false; position = { column = 49; file = "/pwd/lang/eval-okay-lamdadoc-2.nix"; line = 6; }; }
