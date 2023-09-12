@@ -109,6 +109,7 @@ perl/Makefile.config
 /src/resolve-system-dependencies/resolve-system-dependencies
 
 outputs/
+.cache
 
 *.a
 *.o

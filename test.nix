@@ -1,6 +1,24 @@
 rec {
-  /**a.b. Docs*/
-  a.b = {a ? null}: {b ? null}: a b;
+  foo = builtins.unsafeGetLambdaDoc
+            {
+                /**
+                  # The id function
+
+                  * Bullet item
+                  * another item
+
+                  ## h2 markdown heading
+
+                  some more docs
+                */
+                foo = x: x;
+            }.foo;
+  /**
+    Level0
+      Level1
+        Level2
+  */
+  a.b = a: {b ? null}: a b;
 
   /**foo*/foonction = f: x: f x;
 
@@ -12,17 +30,17 @@ rec {
 
   mapAttrs = attrsets.mapAttrs;
 
-
-
   # builtins.getAttrDoc mapAttrs -> ""
   # builtins.getLambdaDoc mapAttrs -> "Docs"
   /**
   Doc Comment
   */
-  id=x: x;
+  id=((x: (x)));
 
+  /** Nice docs*/
+  primApp = map (x: x);
   /**Docu for number*/
-  number = a.b {};
+  partial = a.b {};
 
   # alias = number;
 

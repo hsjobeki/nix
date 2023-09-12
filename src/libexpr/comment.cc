@@ -98,6 +98,9 @@ struct Doc lookupDoc(const Pos &pos) {
 static std::string optional(std::string s) {
   return std::string("(?:" + s + ")?");
 }
+static std::string optionals(std::string s) {
+  return std::string("(?:" + s + ")*");
+}
 
 /* Try to recover a Doc by looking at the text that leads up to a term
    definition */
@@ -120,13 +123,16 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   std::string lambdas("((:?" + lambda + ")*)");
   std::string assign("=" + whitespaces);
 
+  std::string rightParen("\\(" + whitespaces);
+
   // The docComment should:
   // A: be the first item from the back of the SourceString
   // B: be drecitly behind an attribute path assignment
   //
   // This is solved  by allowing an optional 'path = ' at the end.
   std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
-                          optional(simplePath + assign));
+                          optional(simplePath + assign) +
+                          optionals(whitespaces + rightParen));
 
   std::string re(commentUnit + "$");
   std::regex e(re);

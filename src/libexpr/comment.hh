@@ -20,6 +20,10 @@ struct Doc {
     this->rawComment = rawComment;
     this->comment = comment;
   }
+  Doc(std::string str) {
+    this->rawComment = str;
+    this->comment = str;
+  }
 };
 
 extern struct Doc emptyDoc;

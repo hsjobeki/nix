@@ -19,6 +19,7 @@
 #include <boost/container/small_vector.hpp>
 #include <nlohmann/json.hpp>
 
+#include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -2689,9 +2690,13 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   }
   // TODO: Maybe assign the .doc content of the primop?
   if (value.isPrimOp() || value.isPrimOpApp()) {
+    auto primDoc = value.primOp->doc;
+    std::string s(primDoc);
+    doc = Comment::Doc(s);
+
+    // PrimOps and PrimOpApps
+    // dont have source position
     attrs.alloc("position").mkNull();
-    // PrimOps and partially applied PrimOps (PrimOpApp) dont have source
-    // positions.
     attrs.alloc("isPrimop").mkBool(true);
   } else {
     attrs.alloc("isPrimop").mkBool(false);
@@ -2708,12 +2713,15 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
 
 static RegisterPrimOp primop_unsafeGetLambdaDoc(PrimOp{
     .name = "__unsafeGetLambdaDoc",
-    .arity = 1,
+    .args = {"f"},
     .doc = R"(
-        unsafeGetLambdaDoc returns an attribute set containing the `content` of a multiline doc-comment (format: `/** */`)
-        The doc-comment must be placed before the function declaration and is also present on all function aliases.
-        To get doc-comments from a partially applied function use 'builtins.usafeGetAttrDoc'
+        Returns a doc-comment for the lambda `f`.
 
+        Return value: AttributeSet containing the `content` of a multiline doc-comment.
+
+        The doc-comment must be placed before the lambda. Usuallly the same syntax position as `usafeGetAttrDoc`, except for anonymous lambdas.
+
+        Note: To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
         Example:
 
         ```nix
@@ -2736,7 +2744,7 @@ static RegisterPrimOp primop_unsafeGetLambdaDoc(PrimOp{
         evaluates to
 
         ```nix
-        { content = null; isPrimop = false; position = { column = 23; file = "/home/johannes/git/nix/test.nix"; line = 14; }; }
+        { content = "# The id function\n..."; isPrimop = false; position = { column = 23; file = ".../test.nix"; line = 14; }; }
         ```
 
     )",
@@ -2782,11 +2790,16 @@ void prim_unsafeGetAttrDoc(EvalState &state, const PosIdx pos, Value **args,
 
 static RegisterPrimOp primop_unsafeGetAttrDoc(PrimOp{
     .name = "__unsafeGetAttrDoc",
-    .arity = 2,
+    .args = {"path", "set"},
     .doc = R"(
-        unsafeGetAttrDoc returns an attribute set containing the `content` of a multiline doc-comment (format: `/** */`)
+        For attribute `path` in `set` returns the doc-comment.
+
+        Return value: AttributeSet containing the `content` of a multiline doc-comment (format: `/** */`)
+
         The doc-comment must be placed before the attribute path or name.
-        To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
+
+
+        Note: To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
     )",
     .fun = prim_unsafeGetAttrDoc,
 });
