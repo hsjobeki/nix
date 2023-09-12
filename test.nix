@@ -40,8 +40,8 @@ rec {
   /** Nice docs*/
   primApp = map (x: x);
   /**Docu for number*/
-  partial = a.b {};
-
+  partial = ((x:  (  (  y  : ((z: x))))));
+  partiallyApplied = partial "1" "2";
   # alias = number;
 
   # builtins.getDoc alias -> ""
