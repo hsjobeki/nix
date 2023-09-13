@@ -16,13 +16,17 @@ struct Doc {
   // this is crucial information.
   int timesApplied;
 
+  /* stripComment unpacks a comment, by unindenting and stripping " * " prefixes
+   as applicable. The argument should include any preceding whitespace. */
+  static std::string stripComment(std::string rawComment);
+
   Doc(std::string rawComment, std::string comment) {
     this->rawComment = rawComment;
     this->comment = comment;
   }
   Doc(std::string str) {
     this->rawComment = str;
-    this->comment = str;
+    this->comment = Doc::stripComment(str);
   }
 };
 

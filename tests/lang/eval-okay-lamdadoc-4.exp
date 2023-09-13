@@ -1,1 +1,1 @@
-{ content = "\n      Return the sum of the numbers *e1* and *e2*.\n    "; isPrimop = true; position = null; }
+{ content = "Return the sum of the numbers *e1* and *e2*."; countApplied = 1; isPrimop = true; position = null; }

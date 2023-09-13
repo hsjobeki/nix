@@ -2675,7 +2675,14 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   auto lambda = value.lambda;
 
   // TODO: Rewind the position so there is no outer lambda anymore.
-  auto attrs = state.buildBindings(3);
+  auto attrs = state.buildBindings(4);
+  // {
+  //      content :: String;
+  //      position :: { mkPos };
+  //      isPrimop :: boolean;
+  //      countApplied :: Int;
+  //  }
+
   Comment::Doc doc = Comment::emptyDoc;
 
   // TODO: print warning if used on primops
@@ -2690,26 +2697,34 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   }
   // TODO: Maybe assign the .doc content of the primop?
   if (value.isPrimOp() || value.isPrimOpApp()) {
-    if (value.isPrimOp()) {
-      auto primDoc = value.primOp->doc;
-      std::string s(primDoc);
-      doc = Comment::Doc(s);
-    }
-    if (value.isPrimOpApp()) {
-      Value *left = value.primOpApp.left;
-      while (!left->isPrimOp()) {
-        left = value.primOpApp.left;
-      }
-      std::string s(left->primOp->doc);
-      doc = Comment::Doc(s);
-    }
-
     // PrimOps and PrimOpApps
     // dont have source position
     attrs.alloc("position").mkNull();
     attrs.alloc("isPrimop").mkBool(true);
   } else {
     attrs.alloc("isPrimop").mkBool(false);
+  }
+
+  if (value.isPrimOp()) {
+    auto primDoc = value.primOp->doc;
+    std::string s(primDoc);
+    doc = Comment::Doc(s);
+  }
+
+  if (value.isPrimOpApp()) {
+    Value *maybePrimop = value.primOpApp.left;
+    int countApplied = 1;
+    // Find the primop by traversing left
+    while (!maybePrimop->isPrimOp() && maybePrimop->isPrimOpApp()) {
+      maybePrimop = maybePrimop->primOpApp.left;
+      countApplied++;
+    }
+
+    attrs.alloc("countApplied").mkInt(countApplied);
+    // If we found a primop assign the docs
+    if (maybePrimop->isPrimOp()) {
+      doc = Comment::Doc(maybePrimop->primOp->doc);
+    }
   }
 
   if (doc.comment.empty()) {

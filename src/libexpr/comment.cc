@@ -50,10 +50,6 @@ static struct Doc parseDoc(std::string sourcePrefix);
  */
 static std::string optional(std::string s);
 
-/* stripComment unpacks a comment, by unindenting and stripping " * " prefixes
-   as applicable. The argument should include any preceding whitespace. */
-static std::string stripComment(std::string rawComment);
-
 /* Consistent unindenting. It will only remove entire columns. */
 static std::string unindent(std::string s);
 
@@ -102,9 +98,9 @@ static std::string optionals(std::string s) {
   return std::string("(?:" + s + ")*");
 }
 
-static std::string mkGroup(std::string match, std::string name) {
-  return std::string("(?'" + name + "'" + match + ")");
-}
+// static std::string mkGroup(std::string match, std::string name) {
+//   return std::string("(?'" + name + "'" + match + ")");
+// }
 
 /* Try to recover a Doc by looking at the text that leads up to a term
    definition */
@@ -126,18 +122,18 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   std::string simplePath("(?:" + whitespaces + ident + "\\.)*" + identKeep);
 
   //    ((x:  (  (  y  : ((
-  std::string lambda(optionals(rightParen) + ident + whitespaces + ":" +
-                     whitespaces + optionals(rightParen));
+  std::string simpleLambda(optionals(rightParen) + ident + whitespaces + ":" +
+                           whitespaces + optionals(rightParen));
   /* helper to see countLambdas */
 
-  std::string lambdas("((:?" + lambda + ")*)");
+  std::string lambdas("((:?" + simpleLambda + ")*)");
   std::string assign("=" + whitespaces);
 
   // optionals(whitespaces + rightParen)
 
   // The docComment should:
   // A: be the first item from the back of the SourceString
-  // B: be drecitly behind an attribute path assignment
+  // B: be directly behind an attribute path assignment
   //
   // This is solved  by allowing an optional 'path = ' at the end.
   std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
@@ -160,10 +156,10 @@ static struct Doc parseDoc(std::string sourcePrefix) {
 
   std::string rawComment = matches[REGEX_GROUP_COMMENT];
 
-  return Doc(rawComment, stripComment(rawComment));
+  return Doc(rawComment, Doc::stripComment(rawComment));
 }
 
-static std::string stripComment(std::string rawComment) {
+std::string Doc::stripComment(std::string rawComment) {
   rawComment.erase(rawComment.find_last_not_of("\n") + 1);
 
   std::string s(trimUnindent(rawComment));
