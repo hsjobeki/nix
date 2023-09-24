@@ -1,1 +1,1 @@
-{ content = "Docs"; isPrimop = false; position = { column = 3; file = "/pwd/lang/eval-okay-attrdoc-1.nix"; line = 5; }; }
+{ content = "Docs"; position = { column = 3; file = "/pwd/lang/eval-okay-attrdoc-1.nix"; line = 5; }; }

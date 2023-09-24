@@ -1,48 +1,107 @@
 rec {
-  foo = builtins.unsafeGetLambdaDoc
-            {
-                /**
-                  # The id function
-
-                  * Bullet item
-                  * another item
-
-                  ## h2 markdown heading
-
-                  some more docs
-                */
-                foo = x: x;
-            }.foo;
   /**
-    Level0
-      Level1
-        Level2
+  # Return an attribute from nested attribute sets.
+
+  # Example
+
+    x = { a = { b = 3; }; }
+    # ["a" "b"] is equivalent to x.a.b
+    # 6 is a default value to return if the path does not exist in attrset
+    attrByPath ["a" "b"] 6 x
+    => 3
+    attrByPath ["z" "z"] 6 x
+    => 6
+
+  # Type
+    attrByPath :: [String] -> Any -> AttrSet -> Any
+
+  */
+  map = x: x;
+
+  /**
+  This is deprecated
+  */
+  deprecatedMap = map;
+
+  foo =
+    builtins.unsafeGetLambdaDoc
+    {
+      /**
+      # The id function
+
+      * Bullet item
+      * another item
+
+      ## h2 markdown heading
+
+      some more docs
+      */
+      foo = x: x;
+    }
+    .foo;
+  /**
+  Level0
+    Level1
+      Level2
+  */
+  /**
+  Foonction
   */
   a.b = a: {b ? null}: a b;
 
-  /**Foonction*/foonction = f: x: f x;
+  /**
+  Doc2
+  */
+  foonction =
+    /**
+    A foocntion
+    */
+    f: (x: f + x);
 
-  /**Docs*/
+  /**
+  Docs
+  */
   attrDoc = 1;
 
-  lambdaDoc = builtins.id or /**Docs*/ (x: x);
+  lambdaDoc =
+    builtins.id
+    or
+    /**
+    Docs
+    */
+    (x: x);
 
   # Special case:
   # Lambda is directly assigned to attrName
   # It is allowed to move the lambdaDoc to the same postion as attrDoc
+  mkDerivation = {
+    /**
+    Output Docs
+    */
+    outputs,
+    /**
+    BuildPhase Docs
+    */
+    buildPhase,
+  }:
+    derivation;
 
-  /**Docs*/
-  specialLambdaDoc = z: ({a, v}: ((x:  x)));
-
-
+  /**
+  Docs
+  */
+  specialLambdaDoc = z: ({
+    a,
+    v,
+  }: (x: x));
 
   alias = foonction 1;
 
-  /**Not a Lambda Doc but still an attrDoc*/
+  /**
+  Not a Lambda Doc but still an attrDoc
+  */
   c = let foo = a: a; in foo;
 
   attrsets = import ./attrsets.nix;
-
 
   mapAttrs = attrsets.mapAttrs;
 
@@ -52,29 +111,37 @@ rec {
   /**
   Doc Comment
   */
-  id=((x: (x)));
+  ${"id"} = x: x;
 
-  /** Nice docs*/
+  /**
+  Nice docs
+  */
   primApp = map (x: x);
-  /**Docu for number*/
-  partial = ((x:  (  (  y  : ((z: x))))));
+  /**
+  Docu for number
+  */
+  partial = x: (y: (z: x));
   partiallyApplied = partial "1" "2";
   # alias = number;
-  anonymous = builtins.id or /**The lib function id*/ (x: x);
+  anonymous =
+    builtins.id
+    or
+    /**
+    The lib function id
+    */
+    (x: x);
   # builtins.getDoc alias -> ""
-
 
   /**
   Some docs
   */
-  paren = (x: (x));
+  paren = x: x;
 
   /**
   ATTRDOC: Suppported
   LAMBDADOC: Not suppported -> NEEDED! See AST
   */
-  bad1.${"foo"}.c = (x: x);
-
+  bad1.${"foo"}.c = x: x;
 
   /**
   ATTRDOC: Suppported
@@ -86,36 +153,70 @@ rec {
 
   ## CASE 1 ATTRPOS returns a postion? WOOOT!!
 
-  setWithMappedNamed = lib.mapAttrs' (n: v: {name="${n + "foo"}";/**Weird; afoo and bfoo attrDocs*/ value=v; })
-  {
-    /**A Lambda*/
-    a = x: x;
-    /**Foo Lambda*/
-    b = y: y;
-  };
+  setWithMappedNamed =
+    lib.mapAttrs' (n: v: {
+      name = "${n + "foo"}";
+      /**
+      Weird; afoo and bfoo attrDocs
+      */
+      value = v;
+    })
+    {
+      /**
+      A Lambda
+      */
+      a = x: x;
+      /**
+      Foo Lambda
+      */
+      b = y: y;
+    };
 
-  setWithMappedNames = builtins.listToAttrs
-    [ { name = "foo"; /**FOO ALSO WEIRD DOCS*/ value = 123; }
-      { name = "bar"; value = 456; }
+  setWithMappedNames =
+    builtins.listToAttrs
+    [
+      {
+        name = "foo";
+        /**
+        FOO ALSO WEIRD DOCS
+        */
+        value = 123;
+      }
+      {
+        name = "bar";
+        value = 456;
+      }
     ];
 
   # returns a cursor position at inherit| but it is impossible to abuse
-  dynamicSet7 = builtins.zipAttrsWith
-  (name: values: { inherit name values; })
-  [ { a = "x"; } { a = "y"; b = "z"; } ];
-
+  dynamicSet7 =
+    builtins.zipAttrsWith
+    (name: values: {inherit name values;})
+    [
+      {a = "x";}
+      {
+        a = "y";
+        b = "z";
+      }
+    ];
 
   ## THIS IS NICE!!
   arguments = builtins.functionArgs (
     {
-      /**X Docs*/
+      /**
+      X Docs
+      */
       x,
-      /**Y Docs*/
+      /**
+      Y Docs
+      */
       y,
-      /**Z Docs*/
-      z
+      /**
+      Z Docs
+      */
+      z,
     }:
-    x + y + z
+      x + y + z
   );
   # builtins.unsafeGetAttrDocs "x" arguments -> "X Docs"
 
@@ -127,35 +228,39 @@ rec {
 
   ## CASE 2 ATTRPOS returns null
 
-  /**A set containing both lambdas*/
+  /**
+  A set containing both lambdas
+  */
   dynamicSet2 = builtins.groupBy (item: builtins.head (builtins.attrNames (builtins.functionArgs item))) [({a}: a) ({b}: b) ({b}: b)];
 
   # getLambdaDoc bad2 -> "DOC..."
 
-  dynamicSet3 = builtins.mapAttrs (k: v: /**Same lambda al the time*/ (x: x)) {
+  dynamicSet3 = builtins.mapAttrs (k: v:
+    /**
+    Same lambda al the time
+    */
+    (x: x)) {
     id = "some id function";
     inv = "some inv function";
   };
 
   dynamicSet4 = builtins.catAttrs "a" [
     {
-      /**A Docs*/
+      /**
+      A Docs
+      */
       a = x: x;
     }
     {b = f: f;}
     {
-      /**Another A Docs*/
+      /**
+      Another A Docs
+      */
       a = y: y;
     }
   ];
 
-
-  dynamicSet5 = builtins.partition (x: (builtins.attrNames (builtins.functionArgs x)) == [] ) [({a}: a) (x: x)];
-
-
-
-
-
+  dynamicSet5 = builtins.partition (x: (builtins.attrNames (builtins.functionArgs x)) == []) [({a}: a) (x: x)];
 
   # NODE_ASSIGN
   #   NODE_ATTRPATH
@@ -179,20 +284,14 @@ rec {
   #   ...
   #
 }
-
-
 # (import ./somefile)
-
 # lib = {
 #   myLibfunction = (import ./lib.nix).someLib;
 #   doc = builtins.getDoc someLib;
-
 # }
-
 # ./lib.nix
-
 # {
 #   /*Docuemtn*/
 #   someLib = x: x;
-
 # }
+

@@ -502,17 +502,6 @@ static void prim_getDoc(EvalState &state, const PosIdx pos, Value **args,
   v.mkString(t);
 }
 
-static RegisterPrimOp primop_getDoc({
-    .name = "getDoc",
-    .args = {"e"},
-    .doc = R"(
-      Return a string representing the type of the value *e*, namely
-      `"int"`, `"bool"`, `"string"`, `"path"`, `"null"`, `"set"`,
-      `"list"`, `"lambda"` or `"float"`.
-    )",
-    .fun = prim_getDoc,
-});
-
 static RegisterPrimOp primop_typeOf({
     .name = "__typeOf",
     .args = {"e"},
@@ -2675,6 +2664,7 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   auto lambda = value.lambda;
 
   // TODO: Rewind the position so there is no outer lambda anymore.
+  // TODO: Rewind the position so there is no attr path anymore.
   auto attrs = state.buildBindings(4);
   // {
   //      content :: String;
@@ -2707,8 +2697,10 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
 
   if (value.isPrimOp()) {
     auto primDoc = value.primOp->doc;
-    std::string s(primDoc);
-    doc = Comment::Doc(s);
+    if (primDoc != nullptr) {
+      std::string s(primDoc);
+      doc = Comment::Doc(s);
+    }
   }
 
   if (value.isPrimOpApp()) {
@@ -2740,13 +2732,12 @@ static RegisterPrimOp primop_unsafeGetLambdaDoc(PrimOp{
     .name = "__unsafeGetLambdaDoc",
     .args = {"f"},
     .doc = R"(
-        Returns a doc-comment for the lambda `f`.
+        Returns an AttributeSet containing the `content` of a multiline doc-comment.
 
-        Return value: AttributeSet containing the `content` of a multiline doc-comment.
+        A doc-comment placed directly before the lambda is always valid.
 
-        The doc-comment must be placed before the lambda. Usuallly the same syntax position as `usafeGetAttrDoc`, except for anonymous lambdas.
+        The doc-comment can be placed before the atteribute path, if the lambda is directly assigned to an attribute name (see example).
 
-        Note: To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
         Example:
 
         ```nix
@@ -2791,22 +2782,19 @@ void prim_unsafeGetAttrDoc(EvalState &state, const PosIdx pos, Value **args,
   // { position :: mkPos; content :: String; isPrimop :: Bool }
   // isPrimop type cannot be determined from lambdas in nix code but it is
   // important for references in documentation
-  auto retAttrs = state.buildBindings(3);
+  auto retAttrs = state.buildBindings(2);
 
   if (attribute == args[1]->attrs->end()) {
     // There is no position
     // Therefore there is no doc-comment that could be retrieved
     retAttrs.alloc("position").mkNull();
-    retAttrs.alloc("isPrimop").mkBool(false);
     retAttrs.alloc("content").mkNull();
   } else {
-    retAttrs.alloc("isPrimop")
-        .mkBool(attribute->value->isPrimOp() ||
-                attribute->value->isPrimOpApp());
     state.mkPos(retAttrs.alloc("position"), attribute->pos);
 
     Pos position = state.positions[attribute->pos];
     Comment::Doc doc = Comment::lookupDoc(position);
+
     retAttrs.alloc("content").mkString(doc.comment);
   }
 
@@ -2822,9 +2810,6 @@ static RegisterPrimOp primop_unsafeGetAttrDoc(PrimOp{
         Return value: AttributeSet containing the `content` of a multiline doc-comment (format: `/** */`)
 
         The doc-comment must be placed before the attribute path or name.
-
-
-        Note: To get doc-comments for a function or an alias to a function use 'builtins.usafeGetLambdaDoc'
     )",
     .fun = prim_unsafeGetAttrDoc,
 });
