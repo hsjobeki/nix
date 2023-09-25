@@ -235,7 +235,7 @@ static StorePath getDerivationEnvironment(ref<Store> store, ref<Store> evalStore
     /* Build the derivation. */
     store->buildPaths(
         { DerivedPath::Built {
-            .drvPath = shellDrvPath,
+            .drvPath = makeConstantStorePathRef(shellDrvPath),
             .outputs = OutputsSpec::All { },
         }},
         bmNormal, evalStore);
@@ -547,7 +547,7 @@ struct CmdDevelop : Common, MixEnvironment
                 state,
                 std::move(nixpkgs),
                 "bashInteractive",
-                DefaultOutputs(),
+                ExtendedOutputsSpec::Default(),
                 Strings{},
                 Strings{"legacyPackages." + settings.thisSystem.get() + "."},
                 nixpkgsLockFlags);
