@@ -143,3 +143,5 @@ result
 
 # clangd and possibly more
 .cache/
+.direnv
+.envrc
