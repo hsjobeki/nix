@@ -18,6 +18,21 @@ rec {
   */
   map = x: x;
 
+  /** Some docs*/
+  add = a: b: a + b;
+
+  addOne = add 1;
+
+  error = rec {
+    expr = builtins.unsafeGetLambdaDoc ({
+        /**
+        Foo docs
+        */
+        foo = a: b: c: a;
+      }.foo "1");
+  };
+
+
   /**
   This is deprecated
   */
