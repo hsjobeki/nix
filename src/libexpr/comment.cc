@@ -2,6 +2,7 @@
 #include <climits>
 #include <fstream>
 #include <iostream>
+#include <ostream>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -148,7 +149,7 @@ static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
   // 6. There should be the doc-comment
   std::string reverseRegex("^" + whitespaces + lParen + lambda +
                            "*(?:" + assign + path + ")?" + whitespaces + doc);
-  std::string simpleRegex("^" + whitespaces + doc);
+  std::string simpleRegex("^" + whitespaces + "*" + doc);
 
   // The comment is located at the end of the file
   // Even with $ (Anchor End) regex starts to search from the beginning of
@@ -170,6 +171,12 @@ static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
 
   std::smatch matches;
   regex_search(sourcePrefix, matches, e);
+
+  //   std::cout << simpleRegex << std::endl;
+  //   std::cout << sourcePrefix << std::endl;
+  //   for (int i = 0; i < matches. ; i++) {
+  //     std::cout << matches[i] << "i:" << i << std::endl;
+  //   }
 
   std::stringstream buffer;
   if (matches.length() < REGEX_GROUP_COMMENT ||

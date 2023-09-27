@@ -1,1 +1,1 @@
-{ content = "Foo docs"; isPrimop = false; position = { column = 11; file = "/pwd/lang/eval-okay-lamdadoc-3.nix"; line = 5; }; }
+{ content = "Foo docs"; countApplied = 0; isPrimop = false; position = { column = 11; file = "/pwd/lang/eval-okay-lamdadoc-3.nix"; line = 5; }; }
