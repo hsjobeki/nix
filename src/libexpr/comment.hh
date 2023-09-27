@@ -37,6 +37,6 @@ extern struct Doc emptyDoc;
 //
 // Will return empty values if nothing can be found.
 // For its limitations, see the docs of the implementation.
-struct Doc lookupDoc(const Pos &pos);
+struct Doc lookupDoc(const Pos &pos, const bool simple);
 
 } // namespace nix::Comment

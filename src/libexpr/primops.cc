@@ -466,48 +466,6 @@ static void prim_typeOf(EvalState &state, const PosIdx pos, Value **args,
   v.mkString(t);
 }
 
-/* Return a string representing the type of the expression. */
-static void prim_getDoc(EvalState &state, const PosIdx pos, Value **args,
-                        Value &v) {
-  state.forceValue(*args[0], pos);
-  std::string t;
-  switch (args[0]->type()) {
-  case nInt:
-    t = "int";
-    break;
-  case nBool:
-    t = "bool";
-    break;
-  case nString:
-    t = "string";
-    break;
-  case nPath:
-    t = "path";
-    break;
-  case nNull:
-    t = "null";
-    break;
-  case nAttrs:
-    t = "set";
-    break;
-  case nList:
-    t = "list";
-    break;
-  case nFunction:
-    t = "lambda";
-    break;
-  case nExternal:
-    t = args[0]->external->typeOf();
-    break;
-  case nFloat:
-    t = "float";
-    break;
-  case nThunk:
-    abort();
-  }
-  v.mkString(t);
-}
-
 static RegisterPrimOp primop_typeOf({
     .name = "__typeOf",
     .args = {"e"},
@@ -2728,33 +2686,28 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
   // TODO: Rewind the position so there is no outer lambda anymore.
   // TODO: Rewind the position so there is no attr path anymore.
   auto attrs = state.buildBindings(4);
-  // {
-  //      content :: String;
-  //      position :: { mkPos };
-  //      isPrimop :: boolean;
-  //      countApplied :: Int;
-  //  }
-
+  int countApplied = 0;
+  bool isPrimOp = false;
   Comment::Doc doc = Comment::emptyDoc;
 
   // TODO: print warning if used on primops
   // e.g. "Primops dont have doc-comments. Returning empty docs"
   if (value.isLambda()) {
     auto posIdx = lambda.fun->getPos();
-    // TODO: place the cursor before the outermost lambda.
     Pos funPos = state.positions[posIdx];
-    // attrs.alloc("countApplied").mkInt(0);
-    doc = Comment::lookupDoc(funPos);
+
+    doc = Comment::lookupDoc(funPos, false);
     state.mkPos(attrs.alloc("position"), posIdx);
+
+    // TODO: place the cursor before the outermost lambda.
+    // Expr *root =
+    // state.parseExprFromFile(std::get<SourcePath>(funPos.origin)); auto root =
+    // state.findInASTChache(funPos.origin);
+    // dynamic_cast<Expr *>(root) != nullptr;
   }
-  // TODO: Maybe assign the .doc content of the primop?
   if (value.isPrimOp() || value.isPrimOpApp()) {
-    // PrimOps and PrimOpApps
-    // dont have source position
+    isPrimOp = true;
     attrs.alloc("position").mkNull();
-    attrs.alloc("isPrimop").mkBool(true);
-  } else {
-    attrs.alloc("isPrimop").mkBool(false);
   }
 
   if (value.isPrimOp()) {
@@ -2767,25 +2720,22 @@ void prim_unsafeGetLambdaDoc(EvalState &state, const PosIdx pos, Value **args,
 
   if (value.isPrimOpApp()) {
     Value *maybePrimop = value.primOpApp.left;
-    int countApplied = 1;
+    countApplied = 1;
     // Find the primop by traversing left
     while (!maybePrimop->isPrimOp() && maybePrimop->isPrimOpApp()) {
       maybePrimop = maybePrimop->primOpApp.left;
       countApplied++;
     }
 
-    attrs.alloc("countApplied").mkInt(countApplied);
     // If we found a primop assign the docs
     if (maybePrimop->isPrimOp()) {
       doc = Comment::Doc(maybePrimop->primOp->doc);
     }
   }
 
-  if (doc.comment.empty()) {
-    attrs.alloc("content").mkNull();
-  } else {
-    attrs.alloc("content").mkString(doc.comment);
-  }
+  attrs.alloc("isPrimop").mkBool(isPrimOp);
+  attrs.alloc("countApplied").mkInt(countApplied);
+  attrs.alloc("content").mkString(doc.comment);
 
   v.mkAttrs(attrs);
 }
@@ -2855,7 +2805,7 @@ void prim_unsafeGetAttrDoc(EvalState &state, const PosIdx pos, Value **args,
     state.mkPos(retAttrs.alloc("position"), attribute->pos);
 
     Pos position = state.positions[attribute->pos];
-    Comment::Doc doc = Comment::lookupDoc(position);
+    Comment::Doc doc = Comment::lookupDoc(position, true);
 
     retAttrs.alloc("content").mkString(doc.comment);
   }

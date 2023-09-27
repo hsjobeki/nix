@@ -18,11 +18,58 @@ rec {
   */
   map = x: x;
 
-  /** Some docs*/
-  add = a: b: a + b;
+  /**Attribute Add Docs*/
+  add = a: b: a + b; # -> content = ""
 
-  addOne = add 1;
+  addOne = a: a + 1; # -> content = ""
 
+
+  /**Attribute Doc Lambda Doc*/  name = x: x;
+  # name -> 34
+  # whitespaces = 2
+  #
+  # comment.end -> 32
+
+  # Map<Expr,ParentExpr>
+
+  # ROOT_NODE
+  #   NODE_ASSIGN(start_pos)
+  #     PATH
+  #     =
+  #     NODE_LAMDBA(start_pos)
+  #       NODE_LAMDBA(start_pos)
+  #         NODE_LAMDBA(start_pos)
+  #           IDENT(start_pos)
+
+  ident = builtins.indent or (x: x); # .doc
+  # { content: "", countApplied: 1, isPrimop: true, position: null }
+
+  # builtins.getLambdaDoc
+  # builtins.getAttrDoc
+
+  # a.b = (a: ( | b: a  +b;
+
+
+  one = ident 1; # getLambdaDoc one
+
+  # TODO: somehow this doesnt work
+  # test_dynamic_path_correct = rec {
+  #   expr = getLambdaDoc ({
+  #       /**
+  #       Ignored comment
+  #       */
+  #       ${let s = "foo"; in s} =
+  #         /**
+  #         Correct Docs
+  #         */
+  #         x: x;
+  #     }.foo);
+  #   expected = {
+  #     content = "Correct Docs";
+  #     isPrimop = false;
+  #     position = expr.position;
+  #   };
+  # };
   error = rec {
     expr = builtins.unsafeGetLambdaDoc ({
         /**
@@ -30,6 +77,11 @@ rec {
         */
         foo = a: b: c: a;
       }.foo "1");
+    expected = {
+      content = "Foo docs";
+      isPrimop = false;
+      position = expr.position;
+    };
   };
 
 

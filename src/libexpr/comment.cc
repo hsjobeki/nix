@@ -4,6 +4,7 @@
 #include <iostream>
 #include <regex>
 #include <sstream>
+#include <string>
 
 #include "comment.hh"
 #include "nixexpr.hh"
@@ -42,7 +43,7 @@ struct Doc emptyDoc("", "");
 
 /* parseDoc will try to recover a Doc by looking at the text that leads up to a
    term definition.*/
-static struct Doc parseDoc(std::string sourcePrefix);
+static struct Doc parseDoc(std::string sourcePrefix, const bool simple);
 
 /*
  * A simple wrapper for building up regex. Declares the given string 's'
@@ -61,6 +62,7 @@ static std::string trimUnindent(std::string s) { return trim(unindent(s)); }
 // }
 
 static std::string readFileUpToPos(const Pos &pos) {
+
   if (auto path = std::get_if<SourcePath>(&pos.origin)) {
     std::ifstream ifs(path->path.abs());
     std::stringstream ret;
@@ -77,71 +79,92 @@ static std::string readFileUpToPos(const Pos &pos) {
     }
 
     return ret.str();
+    // } else if (auto input = std::get_if<Pos::String>(&pos.origin)) {
+    //   std::cout << "Got string: ";
+    //   // auto source = *input->source;
+    //   std::string source = input->source->data();
+
+    //   std::cout << source;
+
+    //   std::ifstream ifs(source);
+    //   std::stringstream ret;
+    //   size_t lineNum = 1;
+    //   std::string line;
+    //   // for (auto c source.le)
+    //   for (int i = 0; i <= source.length(); i++) {
+    //     char c = source[i];
+    //   }
+    //   std::cout << "L" << pos.line;
+    //   std::cout << ":C" << pos.column << std::endl;
+    //   while (source.split && lineNum <= pos.line) {
+    //     std::cout << "line:" << line;
+    //     if (lineNum < pos.line) {
+    //       ret << line << "\n";
+    //     } else if (lineNum == pos.line) {
+    //       ret << line.substr(0, pos.column - 1);
+    //     }
+    //     lineNum++;
+    //   }
+    //   std::cout << "lastLine:" << line;
+    //   std::cout << "ret:'" << ret.str() << "'";
+    //   return ret.str();
+    // } else if (auto input = std::get_if<Pos::Stdin>(&pos.origin)) {
+    //   std::cout << "Got stdin: ";
+    //   auto source = input->source->data();
+    //   std::cout << source;
   } else {
     throw std::invalid_argument("pos.origin is not a path");
   }
 }
 
-struct Doc lookupDoc(const Pos &pos) {
+struct Doc lookupDoc(const Pos &pos, const bool simple) {
   try {
-    return parseDoc(readFileUpToPos(pos));
+    return parseDoc(readFileUpToPos(pos), simple);
   } catch (std::exception &e) {
     ignoreException();
     return emptyDoc;
   }
 }
-
-static std::string optional(std::string s) {
-  return std::string("(?:" + s + ")?");
-}
-static std::string optionals(std::string s) {
-  return std::string("(?:" + s + ")*");
-}
-
-// static std::string mkGroup(std::string match, std::string name) {
-//   return std::string("(?'" + name + "'" + match + ")");
-// }
-
 /* Try to recover a Doc by looking at the text that leads up to a term
    definition */
-static struct Doc parseDoc(std::string sourcePrefix) {
-  std::string spaces("[ \\t]*");
-  std::string singleLineComment(spaces + "#[^\\r\\n]*(?:\\n|\\r\\n)");
-  std::string whitespaces("([ \\t\\r\\n]|" + singleLineComment + ")*");
+static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
 
-  std::string rightParen(whitespaces + "\\(" + whitespaces);
+  std::string spaces("(?:[ \\t]*)");
+  std::string lineComment("(?:[\\r\\n]*[^\\r\\n]*#" + spaces + "*)");
+  std::string whitespaces("(?:" + lineComment + "*[\\s]*)");
+  std::string ident("(?:[a-zA-Z_][a-zA-Z0-9_'-]*)");
+  std::string path("(?:(?:" + whitespaces + ident + "\\." + whitespaces + ")*" +
+                   ident + ")");
+  std::string assign("(?:=" + whitespaces + ")");
+  std::string lParen("(?:\\(*" + whitespaces + ")");
+  std::string lambda("(?:" + whitespaces + ":" + ident + lParen + ")");
+  std::string doc("([ \\t]*\\/\\*[^*\\/]*\\*\\*\\/)?");
 
-  std::string docCommentPrefix("\\/\\*\\*");
-  std::string multilineCommentSuffix("*\\*+\\/");
-  std::string docComment(docCommentPrefix + "(?:[^*]|\\*+[^*/])" +
-                         multilineCommentSuffix);
-  std::string ident("(?:[a-zA-Z_][a-zA-Z0-9_'-]*)" + whitespaces);
-  std::string identKeep("([a-zA-Z_][a-zA-Z0-9_'-]*)" + whitespaces);
-  /* lvalue for nested attrset construction, but not matching
-     quoted identifiers or ${...} or comments inbetween etc */
-  std::string simplePath("(?:" + whitespaces + ident + "\\.)*" + identKeep);
+  // 1. up all whitespaces
+  // 2. eat remaining parenthesis ' math.mul = ( x: ( <-| y: x * y'
+  // 3. skip all eventual outer lambdas
+  // 4. skip zero or one assignments to a path
+  // 5. eat remaining whitespaces
+  // 6. There should be the doc-comment
+  std::string reverseRegex("^" + whitespaces + lParen + lambda +
+                           "*(?:" + assign + path + ")?" + whitespaces + doc);
+  std::string simpleRegex("^" + whitespaces + doc);
 
-  //    ((x:  (  (  y  : ((
-  std::string simpleLambda(optionals(rightParen) + ident + whitespaces + ":" +
-                           whitespaces + optionals(rightParen));
-  /* helper to see countLambdas */
+  // The comment is located at the end of the file
+  // Even with $ (Anchor End) regex starts to search from the beginning of
+  // the file On large and complex files this can cause infinite recursion
+  // with certain patterns causing the regex to step back and never reaching
+  // $ (end)
+  // -> And thus never terminates. We search the comment in reverse order,
+  // such that we can abort the search early This is also significantly more
+  // performant. A high end solution would include a custom parser, because
+  // the regex engine seems very expensive
+  std::reverse(sourcePrefix.begin(), sourcePrefix.end());
 
-  std::string lambdas("((:?" + simpleLambda + ")*)");
-  std::string assign("=" + whitespaces);
-
-  // optionals(whitespaces + rightParen)
-
-  // The docComment should:
-  // A: be the first item from the back of the SourceString
-  // B: be directly behind an attribute path assignment
-  //
-  // This is solved  by allowing an optional 'path = ' at the end.
-  std::string commentUnit("(" + spaces + docComment + ")" + whitespaces +
-                          optional(simplePath + assign) +
-                          optionals(rightParen) + optional(lambdas));
-
-  std::string re(commentUnit + "$");
-  std::regex e(re);
+  std::regex e(simpleRegex);
+  if (!simple) {
+    e = std::regex(reverseRegex);
+  }
 
 #define REGEX_GROUP_COMMENT 1
 
@@ -155,7 +178,7 @@ static struct Doc parseDoc(std::string sourcePrefix) {
   }
 
   std::string rawComment = matches[REGEX_GROUP_COMMENT];
-
+  std::reverse(rawComment.begin(), rawComment.end());
   return Doc(rawComment, Doc::stripComment(rawComment));
 }
 
