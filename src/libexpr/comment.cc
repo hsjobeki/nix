@@ -142,9 +142,9 @@ static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
   std::string doc("([ \\t]*\\/\\*[^*\\/]*\\*\\*\\/)?");
 
   // 1. up all whitespaces
-  // 2. eat remaining parenthesis ' math.mul = ( x: ( <-| y: x * y'
-  // 3. skip all eventual outer lambdas
-  // 4. skip zero or one assignments to a path
+  // 2. eat remaining parenthesis
+  // 3. skip all eventual outer lambdas (Limitation only simple arguments are suppported. e.g. a: NOT {b ? <c> }: )
+  // 4. skip zero or one assignments to a path (Limitation only simple paths are suppported. e.g. a.b  NOT a.${b} )
   // 5. eat remaining whitespaces
   // 6. There should be the doc-comment
   std::string reverseRegex("^" + whitespaces + lParen + lambda +
@@ -153,13 +153,15 @@ static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
 
   // The comment is located at the end of the file
   // Even with $ (Anchor End) regex starts to search from the beginning of
-  // the file On large and complex files this can cause infinite recursion
-  // with certain patterns causing the regex to step back and never reaching
-  // $ (end)
-  // -> And thus never terminates. We search the comment in reverse order,
-  // such that we can abort the search early This is also significantly more
-  // performant. A high end solution would include a custom parser, because
-  // the regex engine seems very expensive
+  // the file on large files this can cause regex stack overflow / recursion with more than 100k match cycles.
+  // with certain patterns causing the regex to step back and never reaching the end of the file.
+  //
+  // Solving this we search the comment in reverse order,
+  // such that we can abort the search early. This is also significantly more
+  // performant.
+
+  // A high end solution would include access to the AST and a custom doc-comment parser,
+  // because regex matching is very expensive.
   std::reverse(sourcePrefix.begin(), sourcePrefix.end());
 
   std::regex e(simpleRegex);
@@ -171,12 +173,6 @@ static struct Doc parseDoc(std::string sourcePrefix, const bool simple) {
 
   std::smatch matches;
   regex_search(sourcePrefix, matches, e);
-
-  //   std::cout << simpleRegex << std::endl;
-  //   std::cout << sourcePrefix << std::endl;
-  //   for (int i = 0; i < matches. ; i++) {
-  //     std::cout << matches[i] << "i:" << i << std::endl;
-  //   }
 
   std::stringstream buffer;
   if (matches.length() < REGEX_GROUP_COMMENT ||

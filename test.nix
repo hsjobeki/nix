@@ -1,4 +1,8 @@
 rec {
+
+  /**Bar docs*/
+  ${let name = "bar"; in name} = x: x;
+
   /**
   # Return an attribute from nested attribute sets.
 
