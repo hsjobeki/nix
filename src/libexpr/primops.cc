@@ -2561,6 +2561,9 @@ void prim_lambdaMeta(EvalState &state, const PosIdx pos, Value **args, Value &v)
         (argsList.listElems()[n] = state.allocValue())->mkString(arg);
     }
 
+    if (!value.isPrimOpApp()) {
+        attrs.alloc("countApplied").mkInt(0);
+    }
     attrs.alloc("arity").mkInt(NixInt(arity));
     attrs.alloc("experimental").mkBool(experimentalFeature.has_value());
   }
