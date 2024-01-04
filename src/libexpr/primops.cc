@@ -2521,17 +2521,21 @@ void prim_lambdaMeta(EvalState &state, const PosIdx pos, Value **args, Value &v)
       "while evaluating the first argument to builtins.lambdaMeta");
   auto lambda = value.lambda;
 
-  // TODO: Rewind the position so there is no outer lambda anymore.
-  // TODO: Rewind the position so there is no attr path anymore.
+  // Init the resulting attribute set
   auto attrs = state.buildBindings(9);
   bool isPrimOp = false;
 
   if (value.isLambda()) {
-    auto posIdx = lambda.fun->getPos();
+    PosIdx posIdx = lambda.fun->getPos();
     Pos funPos = state.positions[posIdx];
     state.mkPos(attrs.alloc("position"), posIdx);
   }
-
+  // Special case for __functors
+  if (value.attrs != nullptr){
+    PosIdx posIdx = value.attrs->pos;
+    Pos funPos = state.positions[posIdx];
+    state.mkPos(attrs.alloc("position"), posIdx);
+  }
 
   if (value.isPrimOp() || value.isPrimOpApp()) {
     // Primops dont have source position"
