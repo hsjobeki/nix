@@ -2522,7 +2522,7 @@ void prim_lambdaMeta(EvalState &state, const PosIdx pos, Value **args, Value &v)
   auto lambda = value.lambda;
 
   // Init the resulting attribute set
-  auto attrs = state.buildBindings(9);
+  auto attrs = state.buildBindings(10);
   bool isPrimOp = false;
 
   if (value.isLambda()) {
@@ -2532,9 +2532,15 @@ void prim_lambdaMeta(EvalState &state, const PosIdx pos, Value **args, Value &v)
   }
   // Special case for __functors
   if (value.attrs != nullptr){
-    PosIdx posIdx = value.attrs->pos;
-    Pos funPos = state.positions[posIdx];
-    state.mkPos(attrs.alloc("position"), posIdx);
+    Bindings::iterator i = value.attrs->find(state.symbols.create("__functor"));
+    if (i != value.attrs->end()){
+        // std::cout << "\n functor \n";
+        PosIdx posIdx = value.attrs->pos;
+        Pos funPos = state.positions[posIdx];
+        // std::cout << "funPos" << funPos.line <<  "\n";
+        state.mkPos(attrs.alloc("position"), posIdx);
+        attrs.alloc("isFunctor").mkBool(true);
+    }
   }
 
   if (value.isPrimOp() || value.isPrimOpApp()) {
